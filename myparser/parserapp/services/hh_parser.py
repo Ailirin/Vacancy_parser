@@ -4,6 +4,23 @@ from requests.exceptions import RequestException, Timeout
 from parserapp.serializers import vacancy_from_hh
 
 
+class HHParserError(Exception):
+    """Базовое исключение для ошибок парсера HH"""
+    pass
+
+
+class HHTimeoutError(HHParserError):
+    """Исключение при таймауте запроса к HH"""
+    pass
+
+
+class HHRequestError(HHParserError):
+    """Исключение при ошибке запроса к HH"""
+    def __init__(self, message, status_code=None):
+        self.status_code = status_code
+        super().__init__(message)
+
+
 class HHParser:
     BASE_URL = "https://api.hh.ru/vacancies"
 
@@ -30,22 +47,20 @@ class HHParser:
                 headers=self.HEADERS,
                 timeout=10
             )
-            print(f"HH response status={response.status_code}, body={response.text}")
             response.raise_for_status()
             data = response.json()
             items = data.get("items", [])
-            print(f"HH request ok: query={query} page={page} per_page={per_page} items={len(items)}")
-            if items:
-                print(f"HH first item sample: {items[0]}")
             return self.parse_response(data)
-        except Timeout:
-            print(f"Запрос к HH.ru превысил время ожидания: query={query}")
-            return []
+        except Timeout as e:
+            raise HHTimeoutError(f"Запрос к HH.ru превысил время ожидания: {e}")
         except RequestException as e:
-            if getattr(e, "response", None) is not None:
-                print(f"HH error {e.response.status_code}: {e.response.text}")
-            print(f"Ошибка при запросе к HH.ru: {e}")
-            return []
+            status_code = None
+            if hasattr(e, "response") and e.response is not None:
+                status_code = e.response.status_code
+            raise HHRequestError(
+                f"Ошибка при запросе к HH.ru: {e}",
+                status_code=status_code
+            )
 
     def parse_response(self, data):
         return [vacancy_from_hh(item) for item in data.get("items", [])]

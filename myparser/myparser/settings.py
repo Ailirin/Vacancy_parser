@@ -17,8 +17,8 @@ from django.core.exceptions import ImproperlyConfigured
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Прямой путь к директории myparser (где лежит manage.py и .env)
-PROJECT_DIR = Path(r"D:\Project\Vacancy_parser\myparser")
+# Директория проекта (где лежит manage.py и .env)
+PROJECT_DIR = BASE_DIR
 
 
 # --- .env loader (без внешних зависимостей) ---
@@ -70,10 +70,6 @@ if not SECRET_KEY:
                     content = candidate.read_text(encoding="utf-16", errors="ignore")
                 except Exception:
                     continue
-            # Отладка: выводим первые несколько строк файла
-            lines_preview = '\n'.join(content.splitlines()[:5])
-            print(f"DEBUG: Reading .env from {candidate}")
-            print(f"DEBUG: First 5 lines:\n{lines_preview}")
             for line in content.splitlines():
                 line_orig = line
                 line = line.strip()
@@ -87,30 +83,18 @@ if not SECRET_KEY:
                         else:
                             continue
                         value = value.strip().strip('"').strip("'")
-                        print(f"DEBUG: Found SECRET_KEY value (length={len(value)})")
                         if value:
                             SECRET_KEY = value
                             os.environ['SECRET_KEY'] = value
-                            print(f"DEBUG: SECRET_KEY loaded successfully")
                             break
-                    except Exception as e:
-                        print(f"DEBUG: Error parsing SECRET_KEY line: {e}, line={line_orig}")
+                    except Exception:
                         continue
         if SECRET_KEY:
             break
 if not SECRET_KEY:
-    # Отладочная информация
     env_paths = [PROJECT_DIR / ".env", BASE_DIR / ".env", BASE_DIR.parent / ".env"]
     existing = [str(p) for p in env_paths if p.exists()]
-    # Попробуем прочитать содержимое существующих файлов
-    file_contents = {}
-    for path in existing:
-        try:
-            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                file_contents[str(path)] = f.read()[:200]  # Первые 200 символов
-        except Exception as e:
-            file_contents[str(path)] = f"Error reading: {e}"
-    msg = f"SECRET_KEY is not set. Define it in .env\nChecked paths: {env_paths}\nExisting files: {existing}\nFile contents preview:\n{file_contents}"
+    msg = f"SECRET_KEY is not set. Define it in .env file.\nChecked paths: {env_paths}\nExisting .env files: {existing}"
     raise ImproperlyConfigured(msg)
 
 # SECURITY WARNING: don't run with debug turned on in production!
