@@ -1,3 +1,41 @@
+from rest_framework import serializers
+from .models import Vacancy
+
+
+class VacancySearchSerializer(serializers.Serializer):
+    search_phrase = serializers.CharField(
+        required=True,
+        help_text="Поисковая фраза для поиска вакансий"
+    )
+    page = serializers.IntegerField(
+        required=False,
+        default=0,
+        min_value=0,
+        help_text="Номер страницы"
+    )
+    per_page = serializers.IntegerField(
+        required=False,
+        default=20,
+        min_value=1,
+        max_value=100,
+        help_text="Количество вакансий на странице (от 1 до 100)"
+    )
+
+
+class VacancySerializer(serializers.Serializer):
+    title = serializers.CharField()
+    company_name = serializers.CharField()
+    description = serializers.CharField()
+    salary_from = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    salary_to = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    currency = serializers.CharField(allow_null=True, allow_blank=True)
+    work_mode = serializers.CharField(allow_null=True, allow_blank=True)
+    location = serializers.CharField(allow_null=True)
+    url = serializers.URLField()
+    external_id = serializers.CharField()
+    source = serializers.CharField()
+
+
 def _parse_work_mode(item):
     """
     Парсит режим работы из ответа API HH.ru.

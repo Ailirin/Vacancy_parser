@@ -1,14 +1,16 @@
-from django.test import TestCase, Client
 from django.urls import reverse
+from django.test import TestCase
 import json
-from unittest.mock import patch, Mock
+from unittest.mock import patch
+from rest_framework.test import APIClient
+from rest_framework import status
 from .services.hh_parser import HHParser, HHTimeoutError, HHRequestError
 from .serializers import vacancy_from_hh
 
 
 class VacancySearchViewTest(TestCase):
     def setUp(self):
-        self.client = Client()
+        self.client = APIClient()
         self.url = reverse('vacancy_search')
 
     def test_search_with_query_params(self):
@@ -35,7 +37,7 @@ class VacancySearchViewTest(TestCase):
                 {'search_phrase': 'python', 'page': 0, 'per_page': 20}
             )
         
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = json.loads(response.content)
         self.assertIn('vacancies', data)
         self.assertEqual(len(data['vacancies']), 1)
@@ -44,7 +46,7 @@ class VacancySearchViewTest(TestCase):
     def test_search_without_search_phrase(self):
         """Тест без обязательного параметра search_phrase"""
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         data = json.loads(response.content)
         self.assertIn('error', data)
 
@@ -54,7 +56,7 @@ class VacancySearchViewTest(TestCase):
             self.url,
             {'search_phrase': 'python', 'page': 'invalid'}
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         data = json.loads(response.content)
         self.assertIn('error', data)
 
@@ -64,7 +66,7 @@ class VacancySearchViewTest(TestCase):
             self.url,
             {'search_phrase': 'python', 'page': -1}
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_search_with_invalid_per_page(self):
         """Тест с невалидным per_page"""
@@ -72,7 +74,7 @@ class VacancySearchViewTest(TestCase):
             self.url,
             {'search_phrase': 'python', 'per_page': 'invalid'}
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_search_with_per_page_too_large(self):
         """Тест с per_page больше 100"""
@@ -80,7 +82,7 @@ class VacancySearchViewTest(TestCase):
             self.url,
             {'search_phrase': 'python', 'per_page': 101}
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_search_with_per_page_zero(self):
         """Тест с per_page равным 0"""
@@ -88,7 +90,7 @@ class VacancySearchViewTest(TestCase):
             self.url,
             {'search_phrase': 'python', 'per_page': 0}
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_search_with_hh_timeout(self):
         """Тест обработки таймаута HH API"""
@@ -97,7 +99,7 @@ class VacancySearchViewTest(TestCase):
                 self.url,
                 {'search_phrase': 'python'}
             )
-        self.assertEqual(response.status_code, 504)
+        self.assertEqual(response.status_code, status.HTTP_504_GATEWAY_TIMEOUT)
         data = json.loads(response.content)
         self.assertIn('error', data)
 
@@ -108,7 +110,7 @@ class VacancySearchViewTest(TestCase):
                 self.url,
                 {'search_phrase': 'python'}
             )
-        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         data = json.loads(response.content)
         self.assertIn('error', data)
 
