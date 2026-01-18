@@ -19,7 +19,7 @@ class VacancySearchView(APIView):
             return Response(
                 {'error': 'Validation error', 'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
-        )
+            )
 
         validated_data = serializer.validated_data
         search_phrase = validated_data['search_phrase']
