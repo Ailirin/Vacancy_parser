@@ -18,6 +18,7 @@ media/
 
 # Logs
 *.log
+logs/
 
 # Build / dist
 dist/

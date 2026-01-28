@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from parserapp.services.hh_parser import HHParser
+from parserapp.services.vacancy_service import VacancyService
 
 
 class Command(BaseCommand):
@@ -10,6 +11,16 @@ class Command(BaseCommand):
             '--query',
             type=str,
             help='Поисковый запрос (если не указан, будет запрошен интерактивно)',
+        )
+        parser.add_argument(
+            '--save',
+            action='store_true',
+            help='Сохранить найденные вакансии в базу данных',
+        )
+        parser.add_argument(
+            '--update',
+            action='store_true',
+            help='Обновить существующие вакансии при сохранении (работает только с --save)',
         )
 
     def handle(self, *args, **options):
@@ -55,10 +66,14 @@ class Command(BaseCommand):
         # 7. Сортировка
         sorted_vacancies = self._sort_vacancies(filtered_vacancies, sort_option)
         
-        # 8. Вывод результатов
+        # 8. Сохранение в БД (если указано)
+        if options.get('save'):
+            self._save_to_database(sorted_vacancies, update_existing=options.get('update', False))
+        
+        # 9. Вывод результатов
         self._display_vacancies(sorted_vacancies)
         
-        # 9. Дополнительные действия
+        # 10. Дополнительные действия
         self._ask_additional_actions(sorted_vacancies)
 
     def _ask_filters(self):
@@ -220,6 +235,26 @@ class Command(BaseCommand):
             
             self.stdout.write('-' * 80)
 
+    def _save_to_database(self, vacancies, update_existing=False):
+        """Сохраняет вакансии в базу данных"""
+        if not vacancies:
+            return
+        
+        self.stdout.write(self.style.WARNING('\n💾 Сохранение вакансий в базу данных...'))
+        
+        try:
+            service = VacancyService()
+            stats = service.save_vacancies(vacancies, update_existing=update_existing)
+            
+            self.stdout.write(self.style.SUCCESS('\n✅ Сохранение завершено!'))
+            self.stdout.write(f'   📊 Всего обработано: {stats["total"]}')
+            self.stdout.write(f'   ✨ Создано новых: {stats["created"]}')
+            if update_existing:
+                self.stdout.write(f'   🔄 Обновлено существующих: {stats["updated"]}')
+            self.stdout.write(f'   ⏭️  Пропущено (дубликаты): {stats["skipped"]}')
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'\n❌ Ошибка при сохранении в БД: {e}'))
+
     def _ask_additional_actions(self, vacancies):
         """Запрашивает дополнительные действия"""
         if not vacancies:
@@ -228,14 +263,18 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING('\n🎯 Дополнительные действия:'))
         self.stdout.write('1. Показать детали конкретной вакансии')
         self.stdout.write('2. Сохранить результаты в файл')
-        self.stdout.write('3. Выход')
+        self.stdout.write('3. Сохранить в базу данных')
+        self.stdout.write('4. Выход')
         
-        choice = input("\nВыберите действие (1-3): ").strip()
+        choice = input("\nВыберите действие (1-4): ").strip()
         
         if choice == "1":
             self._show_vacancy_details(vacancies)
         elif choice == "2":
             self._save_to_file(vacancies)
+        elif choice == "3":
+            update = input("Обновить существующие вакансии? (y/n, по умолчанию n): ").strip().lower() == 'y'
+            self._save_to_database(vacancies, update_existing=update)
         else:
             self.stdout.write(self.style.SUCCESS('\n👋 До свидания!'))
 

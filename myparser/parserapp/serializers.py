@@ -23,6 +23,7 @@ class VacancySearchSerializer(serializers.Serializer):
 
 
 class VacancySerializer(serializers.Serializer):
+    """Сериализатор для вакансий из API (словари)"""
     title = serializers.CharField()
     company_name = serializers.CharField()
     description = serializers.CharField()
@@ -34,6 +35,19 @@ class VacancySerializer(serializers.Serializer):
     url = serializers.URLField()
     external_id = serializers.CharField()
     source = serializers.CharField()
+
+
+class VacancyModelSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Vacancy из БД"""
+    class Meta:
+        model = Vacancy
+        fields = [
+            'id', 'title', 'company_name', 'description', 
+            'salary_from', 'salary_to', 'currency', 'work_mode',
+            'location', 'url', 'external_id', 'source',
+            'posted_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 def _parse_work_mode(item):
