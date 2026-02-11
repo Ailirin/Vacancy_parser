@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 from parserapp.models import Vacancy
-from parserapp.utilis.logger import get_logger
+from parserapp.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

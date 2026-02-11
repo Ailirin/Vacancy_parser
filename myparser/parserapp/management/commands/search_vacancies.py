@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from parserapp.services.hh_parser import HHParser
+from parserapp.parsers import PARSERS, ParserTimeoutError, ParserRequestError
 from parserapp.services.vacancy_service import VacancyService
 
 
@@ -13,6 +13,13 @@ class Command(BaseCommand):
             help='Поисковый запрос (если не указан, будет запрошен интерактивно)',
         )
         parser.add_argument(
+            '--source',
+            type=str,
+            default='hh',
+            choices=['hh', 'hh_by', 'superjob', 'rabota', 'all'],
+            help='Источник: hh (РФ), hh_by (РБ), superjob (РФ), rabota (РБ), all',
+        )
+        parser.add_argument(
             '--save',
             action='store_true',
             help='Сохранить найденные вакансии в базу данных',
@@ -23,9 +30,25 @@ class Command(BaseCommand):
             help='Обновить существующие вакансии при сохранении (работает только с --save)',
         )
 
+    def _get_parser(self, source):
+        if source == 'all':
+            from parserapp.views import _aggregate_from_all_sources
+            return ('aggregate', _aggregate_from_all_sources)
+        try:
+            ParserClass = PARSERS.get(source)
+            if not ParserClass:
+                return None
+            return ParserClass()
+        except ValueError:
+            return None
+
     def handle(self, *args, **options):
-        parser = HHParser()
-        
+        source = options.get('source', 'hh')
+        vac_parser = self._get_parser(source)
+        if not vac_parser:
+            self.stdout.write(self.style.ERROR(f'Не удалось создать парсер для {source}'))
+            return
+
         # 1. Запрос поисковой фразы
         search_query = options.get('query')
         if not search_query:
@@ -33,17 +56,24 @@ class Command(BaseCommand):
             if not search_query:
                 self.stdout.write(self.style.ERROR('Поисковый запрос не может быть пустым!'))
                 return
-        
+
         # 2. Запрос количества результатов
         try:
             per_page = int(input("📊 Сколько вакансий показать? (по умолчанию 20): ") or "20")
         except ValueError:
             per_page = 20
-        
+
         # 3. Поиск вакансий
-        self.stdout.write(self.style.SUCCESS(f'\n🔎 Ищу вакансии по запросу "{search_query}"...'))
-        vacancies = parser.get_vacancies(search_query, page=0, per_page=per_page)
-        
+        self.stdout.write(self.style.SUCCESS(f'\n🔎 Ищу вакансии по запросу "{search_query}" ({source})...'))
+        try:
+            if isinstance(vac_parser, tuple) and vac_parser[0] == 'aggregate':
+                vacancies = vac_parser[1](search_query, 0, per_page)
+            else:
+                vacancies = vac_parser.get_vacancies(search_query, page=0, per_page=per_page)
+        except (ParserTimeoutError, ParserRequestError) as e:
+            self.stdout.write(self.style.ERROR(f'Ошибка при запросе: {e}'))
+            return
+
         if not vacancies:
             self.stdout.write(self.style.WARNING('Вакансии не найдены.'))
             return

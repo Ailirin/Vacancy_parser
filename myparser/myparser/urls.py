@@ -16,10 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.authtoken.views import obtain_auth_token
 from parserapp.views import api_info
 
 urlpatterns = [
     path('', api_info, name='api_info'),
     path('admin/', admin.site.urls),
     path('api/', include('parserapp.urls')),
+    # Получение токена: POST с username + password. csrf_exempt — для вызова из curl/Postman
+    path('api-token-auth/', csrf_exempt(obtain_auth_token), name='api_token_auth'),
 ]

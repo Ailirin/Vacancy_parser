@@ -5,7 +5,7 @@ from unittest.mock import patch
 from rest_framework.test import APIClient
 from rest_framework import status
 from .services.hh_parser import HHParser, HHTimeoutError, HHRequestError
-from .serializers import vacancy_from_hh
+from .parsers.hh import parse_hh_item
 
 
 class VacancySearchViewTest(TestCase):
@@ -133,7 +133,7 @@ class VacancySerializerTest(TestCase):
             'alternate_url': 'https://hh.ru/vacancy/123456'
         }
         
-        result = vacancy_from_hh(hh_item)
+        result = parse_hh_item(hh_item)
         
         self.assertEqual(result['title'], 'Python Developer')
         self.assertEqual(result['company_name'], 'Test Company')
@@ -159,7 +159,7 @@ class VacancySerializerTest(TestCase):
             'alternate_url': ''
         }
         
-        result = vacancy_from_hh(hh_item)
+        result = parse_hh_item(hh_item)
         
         self.assertEqual(result['title'], 'Developer')
         self.assertEqual(result['company_name'], '')
@@ -184,7 +184,7 @@ class VacancySerializerTest(TestCase):
             'alternate_url': ''
         }
         
-        result = vacancy_from_hh(hh_item)
+        result = parse_hh_item(hh_item)
         self.assertEqual(result['work_mode'], 'office')
 
     def test_vacancy_work_mode_remote(self):
@@ -200,5 +200,5 @@ class VacancySerializerTest(TestCase):
             'alternate_url': ''
         }
         
-        result = vacancy_from_hh(hh_item)
+        result = parse_hh_item(hh_item)
         self.assertEqual(result['work_mode'], 'remote')
